@@ -4,44 +4,47 @@ const jwt=require('jsonwebtoken')
 const bcrypt=require('bcrypt')
 const userRouter=express.Router()
 
-userRouter.post('/register',(req,res)=>{
-    const {username,avatar,email,password}=req.body
+userRouter.post("/register", async (req, res) => {
+    const { name, email, password } = req.body;
     try {
-        bcrypt.hash(password,5,async function(err,hash) {
-            if (err) {
-                res.send(err.message)
-            } else {
-                const user=new userModel({username,avatar,email,password:hash})
-                await user.save()
-                res.send('Successfully Registerd')
-            }
-        })
-    } catch (err) {
-        res.send(err.message)
+        var alldata = await userModel.find({ email })
+        if (alldata.length > 0) {
+            res.send({ "msg": "email is alredy present in database" })
+        } else {
+            bcrypt.hash(password, 5, async function (err, hash) {
+                if (err) {
+                    res.send({ "msg": "something went wrong", "error": err.message })
+                } else {
+                    const user = new userModel({ name, email, password:hash })
+                    await user.save()
+                    res.send({ "msg": "New user has been registered" })
+                }
+            });
+        }
+    } catch (error) {
+        res.send({ "msg": "something went wrong", "error": error.message })
     }
 })
 
-userRouter.post('/login',async(req,res)=>{
-    const {email,password}=req.body
+userRouter.post("/login", async (req, res) => {
+    const { email, password } = req.body
     try {
-        const user=await userModel.find({email})
-        if (user) {
-            bcrypt.compare(password,user[0].password,function (err,result) {
+        const user = await userModel.find({ email })
+        if (user.length > 0) {
+            bcrypt.compare(password, user[0].password, function (err, result) {
                 if (result) {
-                    var token=jwt.sign({userID:user[0]._id},'secrete',{expiresIn:60})
-                    var refreshToken=jwt.sign({userID:user[0]._id},'secrete',{expiresIn:300})
+                    var token = jwt.sign({ userID: user[0]._id }, 'secrete', { expiresIn: '1h' });
                     res.cookie('token',token)
-                    res.cookie('refreshToken',refreshToken)
-                    res.send('Login Successful')
+                    res.send({ "msg": "Login successful"})
                 } else {
-                    res.send('login Failed')
+                    res.send({"msg":"wrong credentials","error":err.message})
                 }
-            })
+            });
         } else {
-            res.send('Login Failed')
+            res.send({"msg":"wrong credentials"})
         }
-    } catch (err) {
-        res.send(err.message)
+    } catch (error) {
+        res.send({ "msg": "something went wrong", "error": error.message })
     }
 })
 
